@@ -1,0 +1,74 @@
+#!/usr/bin/env ruby
+require 'rubygems'
+require 'json'
+require 'pg'
+require 'cgi'
+
+cgi = CGI.new
+puts cgi.header
+puts "
+		  <!doctype html>
+		  <html>
+		  <head>
+		  <meta charset='utf-8'>
+		  <title>Risk Legacy Map Viewer</title>
+		  <link rel='stylesheet' href='http://yui.yahooapis.com/pure/0.3.0/pure-min.css'>
+		  <link rel='stylesheet' href='http://yui.yahooapis.com/pure/0.3.0/base-min.css'>
+		  <script src='http://code.jquery.com/jquery-1.9.1.js'></script>
+		  <script src='http://code.jquery.com/ui/1.10.3/jquery-ui.js'></script>
+		  <style>
+		  a:link {color:#0080FF; text-decoration:none;}      /* unvisited link */
+		  a:visited {color:#A3B9B9;text-decoration:none;}  /* visited link */
+		  a:hover {color:#81DAF5;text-decoration:none;}  /* mouse over link */
+		  a:active {text-decoration:none;color:#0000FF;}  /* selected link */
+		  </style>
+		  </head>"
+
+		  # Postgres database settings
+		  @pg_host = "192.168.0.3"
+		  @pg_port = "5432"
+		  @pg_schema = "risk"
+		  @pg_table = 'territories'
+		  @pg_user = "risk"
+		  @pg_pass = "risk"
+
+
+		  def read_from_db
+			  date = Time.now
+			  conn = PGconn.connect(@pg_host, @pg_port, '', '', @pg_schema, @pg_user, @pg_pass)
+			  @res  = conn.exec("select * from #{@pg_table} ORDER BY continent;")
+
+			  puts "
+<table class='pure-table pure-table-bordered'>
+	<thead>
+		<tr>
+			<th>Territory</th>
+			<th>Owner</th>
+			<th>Troops</th>
+			<th>City</th>
+			<th>City Type</th>
+			<th>Scar</th>
+			<th>Continent</th>
+		</tr>
+	</thead>"
+
+
+	@res.each do |row|
+
+		puts"
+	<tbody>
+		<tr>
+			<td>#{row['name']}</td>
+			<td>#{row['owner']}</td>
+			<td>#{row['troops']}</td>
+			<td>#{row['city']}</td>
+			<td>#{row['city_type']}</td>
+			<td>#{row['scar']}</td>
+			<td>#{row['continent']}</td>
+		</tr>
+	</tbody>"
+
+	end
+		  end
+
+	read_from_db

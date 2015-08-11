@@ -1,0 +1,107 @@
+#!/usr/bin/env ruby
+require 'rubygems'
+require 'json'
+require 'pg'
+require 'cgi'
+
+cgi = CGI.new
+	puts cgi.header
+	puts "
+	      <!doctype html>
+		  <html>
+		  <head>
+		  <meta charset='utf-8'>
+		  <title>Risk Legacy Dice Roller Viewer</title>
+		  <link rel='stylesheet' href='http://yui.yahooapis.com/pure/0.3.0/pure-min.css'>
+		  <link rel='stylesheet' href='http://yui.yahooapis.com/pure/0.3.0/base-min.css'>
+		  <script src='http://code.jquery.com/jquery-1.9.1.js'></script>
+		  <script src='http://code.jquery.com/ui/1.10.3/jquery-ui.js'></script>
+		  <style>
+		  a:link {color:#0080FF; text-decoration:none;}      /* unvisited link */
+		  a:visited {color:#A3B9B9;text-decoration:none;}  /* visited link */
+		  a:hover {color:#81DAF5;text-decoration:none;}  /* mouse over link */
+		  a:active {text-decoration:none;color:#0000FF;}  /* selected link */
+		  </style>
+		  </head>"
+
+	# Postgres database settings
+	@pg_host = "192.168.0.3"
+	@pg_port = "5432"
+	@pg_schema = "risk"
+	@pg_table = 'roll'
+	@pg_user = "risk"
+	@pg_pass = "risk"
+	@id = cgi['id']
+	
+	unless cgi['from'] == nil
+		@from = cgi['from']
+		@to = cgi['to']
+	end
+
+	def read_from_db
+	  date = Time.now
+	  conn = PGconn.connect(@pg_host, @pg_port, '', '', @pg_schema, @pg_user, @pg_pass)
+	  if @id == "all"
+        res  = conn.exec("select * from #{@pg_table} ORDER BY roll_id DESC")
+	  elsif @id == ""
+		res  = conn.exec("select * from #{@pg_table} where date between '#{@from}' and '#{@to}' ORDER by roll_id DESC")
+	  elsif @id == ""
+		  @id = '0' 
+	  else
+        res  = conn.exec("select * from #{@pg_table} where roll_id=#{@id}")
+	end
+	  #res  = conn.exec("select * from roll where date > now() - interval '1 day' ORDER BY roll_id DESC")
+	  puts "
+<table class='pure-table pure-table-bordered'>
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Date</th>
+            <th>Attacking territory</th>
+            <th>Defending territory</th>
+            <th>Number of attackers</th>
+            <th>Number of defenders</th>
+            <th>Attack roll</th>
+            <th>Defense roll</th>
+            <th>Modifier used</th>
+            <th>Modified defense roll</th>
+            <th>Attackers lost</th>
+            <th>Defenders lost</th>
+            <th>Attackers remaining</th>
+            <th>Defenders remaining</th>
+            <th>IP</th>
+        </tr>
+    </thead>"
+
+
+	  res.each do |row|
+
+puts"
+    <tbody>
+        <tr>
+            <td><a href='http://www.riskdice.com/risk_view.html?id=#{row['roll_id']}'>#{row['roll_id']}</a></td>
+            <td>#{row['date']}</td>
+            <td>#{row['attacking_terr']}</td>
+            <td>#{row['defending_terr']}</td>
+            <td>#{row['attackers']}</td>
+            <td>#{row['defenders']}</td>
+            <td>#{row['attack_roll']}</td>
+            <td>#{row['def_roll']}</td>
+            <td>#{row['modifier_used']}</td>
+            <td>#{row['def_modified_roll']}</td>
+            <td>#{row['attackers_lost']}</td>
+            <td>#{row['defenders_lost']}</td>
+            <td>#{row['attackers_remaining']}</td>
+            <td>#{row['defenders_remaining']}</td>
+            <td>#{row['ip']}</td>
+        </tr>
+    </tbody>"
+
+	  end
+	  puts "</table>"
+end
+	unless @id.nil? or @id == 0 #or @id = "\"\""
+		read_from_db
+	end
+	
+puts "</body></html>" 

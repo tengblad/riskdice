@@ -1,0 +1,197 @@
+#!/usr/bin/env ruby
+require 'optparse'
+require 'pp'
+require 'pg'
+require 'cgi'
+
+@modifier = ""
+@options = {}
+
+# Postgres database settings
+@pg_host = "192.168.0.3"
+@pg_port = "5432"
+@pg_schema = "risk"
+@pg_user = "risk"
+@pg_pass = "risk"
+
+cgi = CGI.new
+puts cgi.header
+
+optparse = OptionParser.new do|opts|
+  opts.on( '-h', '--help', 'Display this screen' ) do
+	  puts opts
+	  exit
+  end
+
+  @options[:bunker] = false
+  opts.on( '-b', '--bunker', 'Defending territory has bunker scar' ) do
+	@options[:bunker] = true
+	@modifier = "Bunker"
+  end
+
+  @options[:fortified] = false
+  opts.on( '-f', '--fortified', 'Defending territory is fortified' ) do
+	@options[:fortified] = true
+	@modifier = "Fortified"
+  end
+
+  @options[:ammoshort] = false
+  opts.on( '-s', '--ammo-shortage', 'Defending territory has ammo shortage scar' ) do
+    @options[:ammoshort] = true
+	@modifier = "Ammo shortage"
+  end
+
+  @options[:attackers] = nil
+  opts.on( '-a', '--@attackers NUMBER', 'Number of @attackers' ) do |a|
+	  @options[:attackers] = a
+  end
+
+  @options[:defenders] = nil
+  opts.on( '-d', '--defenders NUMBER', 'Number of defenders' ) do |d|
+	  @options[:defenders] = d
+  end
+end
+optparse.parse!
+
+
+
+@options[:attackers] = cgi['attackers']
+@options[:defenders] = cgi['defenders']
+
+if cgi['scar'] == "bunker"
+	@options[:bunker] = true
+	@modifier = cgi['scar']
+end
+
+if cgi['scar'] == "fortified"
+	@options[:fortified] = true
+    @modifier = cgi['scar']
+end
+
+if cgi['scar'] == "ammoshort"
+	@options[:ammoshort] = true
+    @modifier = cgi['scar']
+end
+
+def roll_d6
+	result = 1 + rand(6)
+end
+
+def roll
+	@attack = []
+	@options[:attackers].to_i.times do
+		a = roll_d6
+		@attack.push(a)
+		@attack.sort!.reverse!
+	end
+
+	@unmodified_defense = []
+	@options[:defenders].to_i.times do
+		d = roll_d6
+		@unmodified_defense.push(d)
+		@unmodified_defense.sort!.reverse!
+	end
+
+	@defense = @unmodified_defense.map{|x| x = x}
+	if @options[:bunker] == true 
+		unless @unmodified_defense[0] == 6
+			@defense[0] = @unmodified_defense[0] + 1
+		end
+		unless @unmodified_defense[1].nil?
+			@defense[1] = @unmodified_defense[1]
+		end
+		if @unmodified_defense[0] == 6
+			@defense[0] = @unmodified_defense[0]
+		end
+	end
+
+	if @options[:fortified] == true
+		@defense = @unmodified_defense.map do |x|
+			unless x == 6
+				x = x+= 1
+			end
+			x = x
+		end
+	end
+
+	if @options[:ammoshort] == true
+		unless @defense[0] == 1
+			@defense[0] = @unmodified_defense[0] - 1
+		end
+	end
+
+	@defense_wins = 0 
+	@attack_wins = 0
+
+	if @defense[0] >= @attack[0]
+		@defense_wins += 1
+	end
+
+	if @attack[0] > @defense[0]
+		@attack_wins += 1
+	end
+
+
+	if @options[:defenders].to_i > 1 
+		if @defense[1] >= @attack[1]
+			@defense_wins += 1
+		end
+
+		if @attack[1] > @defense[1]
+			@attack_wins += 1
+		end
+	end
+
+	puts "Number of attackers: #{@options[:attackers]}."
+	puts "<br>"
+	puts "Number of defenders: #{@options[:defenders]}."
+	puts "<br>"
+
+	@attack_remaining = @options[:attackers].to_i - @defense_wins
+	@defense_remaining = @options[:defenders].to_i - @attack_wins
+
+
+	puts "Attacker rolls #{@attack.inspect}."
+	puts "<br>"
+
+	puts "Defender rolls #{@unmodified_defense.inspect}."
+	puts "<br>"
+	if @options[:bunker] == true
+		puts "Defending territory has a bunker scar. Defender gets +1 to highest dice roll."
+		puts "<br>"
+		puts "Modified dice roll: #{@defense.inspect}."
+		puts "<br>"
+	end
+
+	if @options[:fortified] == true
+		puts "Defending territory is fortified. Defender gets +1 to each dice roll."
+		puts "<br>"
+		puts "Modified dice roll: #{@defense.inspect}."
+		puts "<br>"
+	end
+
+	if @options[:ammoshort] == true
+		puts "Defending territory suffers from ammunition shortage. Defender gets -1 to highest dice roll."
+		puts "<br>"
+		puts "Modified dice roll: #{@defense.inspect}."
+		puts "<br>"
+	end
+
+	puts "Attacker rolled #{@attack.inspect} and lost #{@defense_wins} troop(s). They have #{@attack_remaining} troop(s) remaining."
+	puts "<br>"
+	puts "Defender rolled #{@defense.inspect} and lost #{@attack_wins} troop(s). They have #{@defense_remaining} troop(s) remaining."
+	puts "<br>"
+end
+
+def write_to_db
+	date = Time.now
+	conn = PGconn.connect(@pg_host, @pg_port, '', '', @pg_schema, @pg_user, @pg_pass)
+	conn.prepare('statement1', 'insert into risk (date, attack_roll, def_roll, def_modified_roll, attackers, defenders, attackers_lost, defenders_lost, attackers_remaining, defenders_remaining, modifier_used) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) returning id')					
+	id = conn.exec_prepared('statement1', [date, @attack, @unmodified_defense, @defense, @options[:attackers], @options[:defenders], @defense_wins, @attack_wins, @attack_remaining, @defense_remaining, @modifier ])
+	puts "Dice roll saved to database."
+	puts "<br>"
+	puts "Dice roll can be viwed at <a href='http://www.tengblad.net/risk_dice/risk_view.rb?id=#{id[0]['id']}'>http://www.tengblad.net/risk_dice/risk_view.rb?id=#{id[0]['id']}</a>"
+end	
+
+roll
+write_to_db

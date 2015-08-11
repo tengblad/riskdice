@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+<head>
+<meta charset='utf-8'
+><title>Risky Risk</title>
+<link rel='stylesheet' href='http://yui.yahooapis.com/pure/0.3.0/pure-min.css'>
+<link rel='stylesheet' href='http://yui.yahooapis.com/pure/0.3.0/base-min.css'>
+<style>
+a:link {color:#0080FF; text-decoration:none;}      /* unvisited link */
+a:visited {color:#A3B9B9;text-decoration:none;}  /* visited link */
+a:hover {color:#81DAF5;text-decoration:none;}  /* mouse over link */
+a:active {text-decoration:underline;color:#0000FF;}  /* selected link */
+</style>
+<link rel='stylesheet' href='http://www.tengblad.net/jquery/themes/base/jquery.ui.all.css'>
+<script src='http://www.tengblad.net/jquery/jquery-1.9.1.js'></script>
+
+<script type='text/javascript'>//<![CDATA[ 
+$(function(){
+alaska=new Array("Northwest Territory", "Alberta", "Kamchatka");
+phones=new Array('Samsung','Nokia','Iphone');
+names=new Array('Kasper','Elke','Fred','Bobby','Frits');
+colors=new Array('blue','green','yellow');
+
+populateSelect();
+
+$(function() {
+
+      $('#cat').change(function(){
+        populateSelect();
+    });
+    
+});
+
+
+function populateSelect(){
+    cat=$('#cat').val();
+    $('#item').html('');
+    
+       eval(cat).forEach(function(t) { 
+            $('#item').append('<option>'+t+'</option>');
+        });
+    }
+    
+
+    
+ 
+});//]]>  
+
+</script>
+
+</head>
+<body>
+
+<select id="cat">
+    <option val="ontario">alaska</option>
+    <option val="ontario">ontario</option>
+</select>
+<select id="item"></select>
+
+</div>
+</body>
+<footer></br></br><div class='base'><center><sub>All previous dice rolls can be viewed at
+    <a href='http://www.tengblad.net/cgi-bin/risk_view.rb?id=all' target='top'>http://www.tengblad.net/cgi-bin/risk_view.rb?id=all</a></sub>
+</br>
+<sub>
+Dice rolls within a specific date ranged can be searched for at 
+    <a href='http://www.tengblad.net/cgi-bin/riskdate.rb' target='top'>http://www.tengblad.net/cgi-bin/riskdate.rb</a>
+    </sub>
+</center>
+    </div>
+    
+
+</html>

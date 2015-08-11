@@ -1,0 +1,380 @@
+#!/usr/bin/env ruby
+require 'optparse'
+require 'pp'
+require 'pg'
+require 'cgi'
+
+# Create some empty global variables and hahses
+@modifier = "No"
+@options = {}
+
+# getgres database settings
+@pg_host = "192.168.0.3"
+@pg_port = "5432"
+@pg_schema = "risk"
+@pg_table = 'roll'
+@pg_user = "risk"
+@pg_pass = "risk"
+
+@cgi = CGI.new
+puts @cgi.header
+puts "
+<!doctype html>
+<html>
+<head>
+<meta charset='utf-8'
+><title>Risk Legacy Dice Roller</title>
+<link rel='stylesheet' href='http://yui.yahooapis.com/pure/0.3.0/pure-min.css'>
+<link rel='stylesheet' href='http://yui.yahooapis.com/pure/0.3.0/base-min.css'>
+<style>
+a:link {color:#0080FF; text-decoration:none;}      /* unvisited link */
+a:visited {color:#A3B9B9;text-decoration:none;}  /* visited link */
+a:hover {color:#81DAF5;text-decoration:none;}  /* mouse over link */
+a:active {text-decoration:underline;color:#0000FF;}  /* selected link */
+</style>
+<link rel='stylesheet' href='http://www.tengblad.net/jquery/themes/base/jquery.ui.all.css'>
+<script src='http://www.tengblad.net/jquery/jquery-1.9.1.js'></script>
+</head>
+<body>
+
+<script type='text/javascript'>//<![CDATA[ 
+$(function(){
+<!-- North America -->
+Alaska=new Array('Northwest Territory', 'Alberta', 'Kamchatka').sort();
+Alberta=new Array('Northwest Territory', 'Alaska', 'Kamchatka').sort();
+Central_America=new Array('Western United States', 'Eastern United States', 'Venezuela').sort();
+Eastern_United_States=new Array('Ontario', 'Quebec', 'Western United States', 'Central America').sort();
+Eastern_Canda=new Array('Ontario', 'Eastern United States', 'Greenland')
+Greenland=new Array('Northwest Territory', 'Ontario', 'Eastern Canada', 'Iceland').sort();
+Ontario=new Array('Quebec', 'Greenland', 'Alberta', 'Northwest Territory', 'Western United States', 'Eastern United States').sort();
+Northwest_Territory=new Array('Alaska', 'Alberta', 'Ontario', 'Greenland').sort();
+Western_United_States=new Array('Alberta', 'Ontario', 'Quebec', 'Eastern United States', 'Central America').sort();
+
+<!-- South America -->
+Venezuela=new Array('Central America', 'Peru', 'Brazil').sort();
+Peru=new Array('Venezuela', 'Brazil', 'Argentina').sort();
+Brazil=new Array('Venezuela', 'Peru', 'Argentina', 'North Africa').sort();
+Argentina=new Array('Peru', 'Brazil').sort();
+
+<!-- Africa -->
+North_Africa=new Array('Western Europe', 'Southern Europe', 'Egypt', 'East Africa', 'Central Africa').sort();
+Egypt=new Array('North Africa', 'Southern Europe', 'Middle East', 'East Africa', 'Central Africa').sort();
+East_Africa=new Array('North Africa', 'Southern Europe', 'Middle East', 'East Africa', 'Central Africa').sort();
+Central_Africa=new Array('North Africa', 'Egypt', 'East Africa', 'South Africa').sort();
+South_Africa=new Array('Central Africa', 'Madagascar', 'East Africa', 'South Africa').sort();
+Madagascar=new Array('East Africa', 'South Africa').sort();
+
+<!-- Europe -->
+Western_Europe=new Array('North Africa', 'Great Britian', 'Southern Europe', 'Northern Europe').sort();
+Great_Britain=new Array('Iceland', 'Western Europe', 'Scandinavia', 'Western Europe').sort();
+Iceland=new Array('Great Britain', 'Northern Europe', 'Scandinavia', 'Greenland').sort();
+Scandinavia=new Array('Iceland', 'Great Britain', 'Russia', 'Northern Europe').sort();
+Northern_Europe=new Array('Iceland', 'Great Britain', 'Russia', 'Scandinavia', 'Western Europe', 'Southern Europe').sort();
+Southern_Europe=new Array('Western Europe', 'Northern Europe', 'North Africa', 'Middle East', 'Russia', 'Egypt').sort();
+Russia=new Array('Scandinavia', 'Northern Europe', 'Southern Europe', 'Ural', 'Afghanistan', 'Middle East').sort();
+
+<!-- Asia -->
+Middle_East=new Array('Southern Europe', 'Russia', 'Egypt', 'East Africa', 'Afghanistan', 'India').sort();
+Afghanistan=new Array('Russia', 'Middle East', 'Ural', 'India', 'China').sort();
+Ural=new Array('Russia', 'Afghanistan', 'Siberia', 'India', 'China').sort();
+Siberia=new Array('Ural', 'China', 'Yakutsk', 'Irkutsk', 'Mongolia').sort();
+Yakutsk=new Array('Siberia', 'Kamchatka', 'Irkutsk').sort();
+Kamchatka=new Array('Alaska', 'Yakutsk', 'Irkutsk', 'Japan').sort();
+Japan=new Array('Kamchatka', 'Mongolia').sort();
+Irkutsk=new Array('Siberia', 'Kamchatka','Yakutsk', 'Mongolia').sort();
+Mongolia=new Array('Irkutsk', 'Kamchatka','Japan', 'China', 'Siberia').sort();
+China=new Array('India', 'Afghanistan', 'Ural', 'Mongolia', 'South East Asia').sort();
+India=new Array('Middle East', 'Afghanistan', 'China', 'South East Asia').sort();
+South_East_Asia=new Array('India', 'Indonesia', 'China').sort();
+
+<!-- Australia -->
+Indonesia=new Array('South East Asia', 'New Guinea', 'Eastern Australia', 'Western Australia').sort();
+New_Guinea=new Array('South East Asia', 'Indonesia', 'Eastern Australia', 'Western Australia').sort();
+Western_Australia=new Array('South East Asia', 'New Guinea', 'Eastern Australia').sort();
+Eastern_Australia=new Array('South East Asia', 'New Guinea', 'Western Australia').sort();
+
+populateSelect();
+
+$(function() {
+
+      $('#cat').change(function(){
+        populateSelect();
+    });
+    
+});
+
+function populateSelect(){
+    cat=$('#cat').val();
+    $('#item').html('');
+    
+       eval(cat).forEach(function(t) { 
+            $('#item').append('<option>'+t+'</option>');
+        });
+    }
+
+});//]]>  
+</script>
+
+
+<div class='pure-g'>
+<div class='pure-u-1-3'>
+</div>
+    <div class='pure-u-1-3'> 
+    <h2>Risk Legacy Dice Roller</h2>
+<form class='pure-form' target='_self'>
+<fieldset>
+<legend>Number of attackers</legend>
+    <label for='Number of attackers' class='pure-radio'>
+        <input id='1' type='radio' name='attackers' value='1'>
+        1
+
+        <input id='2' type='radio' name='attackers' value='2'>
+        2
+
+        <input id='3' type='radio' name='attackers' value='3'>
+        3
+	</label>
+
+    <label for='attack_terr'>Attacking territory
+    <select id='cat' name='attacking_terr'>
+
+	<option value='Afghanistan'>Afghanistan</option>
+	<option value='Alaska'>Alaska</option>
+	<option value='Alberta'>Alberta</option>
+	<option value='Argentina'>Argentina</option>
+	<option value='Brazil'>Brazil</option>
+	<option value='Central_Africa'>Central Africa</option>
+	<option value='Central_America'>Central America</option>
+	<option value='China'>China</option>
+	<option value='East_Africa'>East Africa</option>
+	<option value='Eastern_Australia'>Eastern Australia</option>
+	<option value='Eastern_Canda'>Eastern Canda</option>
+	<option value='Eastern_United_States'>Eastern United States</option>
+	<option value='Egypt'>Egypt</option>
+	<option value='Great_Britain'>Great Britain</option>
+	<option value='Greenland'>Greenland</option>
+	<option value='Iceland'>Iceland</option>
+	<option value='India'>India</option>
+	<option value='Indonesia'>Indonesia</option>
+	<option value='Irkutsk'>Irkutsk</option>
+	<option value='Japan'>Japan</option>
+	<option value='Kamchatka'>Kamchatka</option>
+	<option value='Madagascar'>Madagascar</option>
+	<option value='Middle_East'>Middle East</option>
+	<option value='Mongolia'>Mongolia</option>
+	<option value='New_Guinea'>New Guinea</option>
+	<option value='North_Africa'>North Africa</option>
+	<option value='Northern_Europe'>Northern Europe</option>
+	<option value='Northwest_Territory'>Northwest Territory</option>
+	<option value='Ontario'>Ontario</option>
+	<option value='Peru'>Peru</option>
+	<option value='Russia'>Russia</option>
+	<option value='Scandinavia'>Scandinavia</option>
+	<option value='Siberia'>Siberia</option>
+	<option value='South_Africa'>South Africa</option>
+	<option value='South_East_Asia'>South East Asia</option>
+	<option value='Southern_Europe'>Southern Europe</option>
+	<option value='Ural'>Ural</option>
+	<option value='Venezuela'>Venezuela</option>
+	<option value='Western_Australia'>Western Australia</option>
+	<option value='Western_Europe'>Western Europe</option>
+	<option value='Western_United_States'>Western United States</option>
+	<option value='Yakutsk'>Yakutsk</option>
+    
+</select>
+</label>
+
+    <br>
+    <br>
+<legend>Number of defenders</legend>
+    <label for='Number of defenders' class='pure-radio'>
+        <input id='2' type='radio' name='defenders' value='1'>
+        1
+
+        <input id='2' type='radio' name='defenders' value='2'>
+        2
+    </label>
+        <label for='def_terr'>Defending territory
+        <select id='item' name='defending_terr'>
+</select>
+</label>
+        <br>
+    <br>
+    <legend>Scar</legend>
+
+    <label for='Scar' class='pure-radio'>
+        <input id='Ammo Shortage' type='radio' name='scar' value='ammoshort'>
+        Ammo shortage
+
+        <input id='Bunker' type='radio' name='scar' value='bunker'>
+        Bunker
+
+        <input id='Fortified' type='radio' name='scar' value='fortified'>
+        Fortified
+    </label>
+    <br>
+    <a class='submit'><input type='submit' class='pure-button pure-button-primary' name='submit' value='Submit'/></a>
+        </fieldset>
+</form>"
+
+
+
+def roll_d6
+	result = 1 + rand(6)
+end
+
+def roll
+	@options[:attackers] = @cgi['attackers']
+	@options[:defenders] = @cgi['defenders']
+	@options[:attacking_terr] =  @cgi['attacking_terr']
+	@options[:defending_terr] =  @cgi['defending_terr']
+
+	@options[:attacking_terr].gsub!(/_/, ' ')
+	@options[:defending_terr].gsub!(/_/, ' ')
+
+	if @cgi['scar'] == "bunker"
+		@options[:bunker] = true
+		@modifier = "Bunker"
+	end
+
+	if @cgi['scar'] == "fortified"
+		@options[:fortified] = true
+    	@modifier = "Fortified"
+	end
+
+	if @cgi['scar'] == "ammoshort"
+		@options[:ammoshort] = true
+    	@modifier = "Ammo shortage"
+	end
+
+	@attack = []
+	@options[:attackers].to_i.times do
+		a = roll_d6
+		@attack.push(a)
+		@attack.sort!.reverse!
+	end
+
+	@unmodified_defense = []
+	@options[:defenders].to_i.times do
+		d = roll_d6
+		@unmodified_defense.push(d)
+		@unmodified_defense.sort!.reverse!
+	end
+
+	@defense = @unmodified_defense.map{|x| x = x}
+	if @options[:bunker] == true 
+		unless @unmodified_defense[0] == 6
+			@defense[0] = @unmodified_defense[0] + 1
+		end
+		unless @unmodified_defense[1].nil?
+			@defense[1] = @unmodified_defense[1]
+		end
+		if @unmodified_defense[0] == 6
+			@defense[0] = @unmodified_defense[0]
+		end
+	end
+
+	if @options[:fortified] == true
+		@defense = @unmodified_defense.map do |x|
+			unless x == 6
+				x = x+= 1
+			end
+			x = x
+		end
+	end
+
+	if @options[:ammoshort] == true
+		unless @defense[0] == 1
+			@defense[0] = @unmodified_defense[0] - 1
+		end
+	end
+
+	@defense_wins = 0 
+	@attack_wins = 0
+
+	if @defense[0] >= @attack[0]
+		@defense_wins += 1
+	end
+
+	if @attack[0] > @defense[0]
+		@attack_wins += 1
+	end
+
+
+	if @options[:defenders].to_i > 1 
+
+		if @attack[1] == nil
+			@defense_wins = @defense_wins
+	
+		elsif @defense[1] >= @attack[1]
+			@defense_wins += 1
+
+		elsif @attack[1] > @defense[1]
+			@attack_wins += 1
+		end
+	end
+
+	@attack_remaining = @options[:attackers].to_i - @defense_wins
+	@defense_remaining = @options[:defenders].to_i - @attack_wins
+
+
+	puts"
+	<b>#{@options[:attacking_terr]}</b> attacks <b>#{@options[:defending_terr]}</b> with #{@options[:attackers]} troop(s).
+	</br>
+	<b>#{@options[:defending_terr]}</b> defends with #{@options[:defenders]} troop(s).
+	</br>
+	</br>
+	Attacker rolls #{@attack.inspect}.
+	<br>
+	Defender rolls #{@unmodified_defense.inspect}.
+	<br>
+	<br>
+	<b>#{@modifier}</b> modifier used.
+	<br>
+	Modified defense dice roll: #{@defense.inspect}
+	<br>
+	<br>
+	Attacker rolled #{@attack.inspect} and lost #{@defense_wins} troop(s). They have #{@attack_remaining} troop(s) remaining.
+	<br>
+	Defender rolled #{@defense.inspect} and lost #{@attack_wins} troop(s). They have #{@defense_remaining} troop(s) remaining.
+	<br>
+	<br>"
+end
+
+def write_to_db
+	date = Time.now
+	conn = PGconn.connect(@pg_host, @pg_port, '', '', @pg_schema, @pg_user, @pg_pass)
+	conn.prepare('statement1', 'insert into roll (date, attack_roll, def_roll, def_modified_roll, attackers, defenders, attackers_lost, defenders_lost, attackers_remaining, defenders_remaining, modifier_used, ip, attacking_terr, defending_terr) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) returning roll_id')					
+	id = conn.exec_prepared('statement1', [date, @attack, @unmodified_defense, @defense, @options[:attackers], @options[:defenders], @defense_wins, @attack_wins, @attack_remaining, @defense_remaining, @modifier,@cgi.remote_addr, @options[:attacking_terr], @options[:defending_terr] ])
+	puts "Dice roll saved to database and can be viewed at
+	<br>
+	<a href='http://www.riskdice.com/risk_view.html?id=#{id[0]['roll_id']}' target='top'>http://www.riskdice.com/risk_view.html?id=#{id[0]['roll_id']}</a></div>
+	<div class='pure-u-1-3'> </div>"
+end	
+
+if @cgi['submit'] != nil and @cgi['submit'] == "Submit"
+	roll
+	write_to_db
+end
+
+puts "</div>
+<div class='pure-u-1-3'></div>
+</div>
+</body>
+<footer></br></br><div class='base'><center><sub>All previous dice rolls can be viewed at
+    <a href='http://www.riskdice.com/risk_view.html?id=all' target='top'>http://www.riskdice.com/risk_view.html?id=all</a></sub>
+</br>
+<sub>
+Dice rolls within a specific date ranged can be searched for at 
+    <a href='http://www.riskdice.com/riskdate.html' target='top'>http:/www.riskdice.com/riskdate.html</a>
+    </sub>
+</br>
+</br>
+<sub>
+	Risk Legacy Dice roller was written by <a href='mailto:erik@tengblad.net'>Erik Tengblad</a> and is free to use as you see fit. But please don't hack me, m'kay?
+</sub>
+</center>
+    </div>
+    
+
+</html>"
